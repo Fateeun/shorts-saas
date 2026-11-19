@@ -1,6 +1,7 @@
 name: Shorts Video Worker
 
-on: workflow_dispatch:
+on:
+  workflow_dispatch:
 
 jobs:
   process-queue:
