@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Shorts SaaS Panel</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    * { box-sizing: border-box; font-family: system-ui, -apple-system, sans-serif; }
+    body { margin: 0; background: #0b0f17; color: #f1f5f9; padding: 16px; }
+    .wrap { max-width: 720px; margin: 0 auto; display: grid; gap: 14px; }
+    .card { background: #131a26; border: 1px solid #243044; border-radius: 14px; padding: 16px; }
+    h1, h2, h3 { margin: 0 0 10px 0; }
+    label { display: block; font-size: 13px; color: #94a3b8; margin: 10px 0 4px; }
+    input, select, textarea, button {
+      width: 100%; padding: 11px 12px; border-radius: 10px;
+      border: 1px solid #2c3b54; background: #0b1019; color: #fff; font-size: 15px;
+    }
+    textarea { min-height: 76px; resize: vertical; }
+    button { background: #2563eb; border: none; font-weight: 600; cursor: pointer; margin-top: 12px; }
+    button.secondary { background: #1e293b; border: 1px solid #334155; }
+    button.admin-btn { background: #059669; }
+    .row { display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; }
+    .badge { background: #1e293b; padding: 5px 10px; border-radius: 999px; font-size: 13px; }
+    .msg { padding: 10px 12px; border-radius: 10px; background: #172554; color: #dbeafe; font-size: 14px; display: none; }
+    .job-item { border-top: 1px solid #222e42; padding: 10px 0; font-size: 14px; }
+    .muted { color: #94a3b8; font-size: 13px; }
+    .hidden { display: none; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="card">
+      <div class="row">
+        <h1>Shorts Otomasyon</h1>
+        <span id="userBadge" class="badge">Giriş yapılmadı</span>
+      </div>
+      <div id="msgBox" class="msg"></div>
+    </div>
+
+    <!-- Supabase Bağlantı Ayarı -->
+    <div id="configCard" class="card">
+      <h2>1. Supabase Bağlantısı</h2>
+      <p class="muted">Project URL ve anon key girip Kaydet'e bas (tarayıcıda saklanır).</p>
+      <label>Project URL</label>
+      <input id="sbUrl" placeholder="https://xxxx.supabase.co" />
+      <label>Anon / Public Key</label>
+      <input id="sbKey" placeholder="eyJhbGciOi..." />
+      <button onclick="saveConfig()">Bağlantıyı Kaydet</button>
+    </div>
+
+    <!-- Giriş / Kayıt -->
+    <div id="authCard" class="card hidden">
+      <h2>Giriş Yap veya Kayıt Ol</h2>
+      <p class="muted">Yeni üyelere otomatik 2 deneme kredisi tanımlanır.</p>
+      <label>E-posta</label>
+      <input id="email" type="email" placeholder="ornek@mail.com" />
+      <label>Şifre</label>
+      <input id="password" type="password" placeholder="En az 6 karakter" />
+      <button onclick="login()">Giriş Yap</button>
+      <button class="secondary" onclick="signup()">Kayıt Ol (+2 Deneme Kredisi)</button>
+      <button class="secondary" onclick="resetConfig()">Supabase Ayarını Değiştir</button>
+    </div>
+
+    <!-- Kullanıcı Paneli -->
+    <div id="appCard" class="card hidden">
+      <div class="row">
+        <div>
+          <h2 id="panelTitle">Video Oluştur</h2>
+          <div class="muted" id="creditInfo">Kredi: -</div>
+        </div>
+        <button class="secondary" style="width:auto; margin:0;" onclick="logout()">Çıkış</button>
+      </div>
+
+      <label>Ne Üretilsin? (Konu / Senaryo Fikri)</label>
+      <textarea id="topic" placeholder="Örn: 3D sevimli hayvanların maçı veya uzayda gizemli bir keşif..."></textarea>
+
+      <label>Görsel Tarz</label>
+      <select id="visualStyle">
+        <option value="3d_cartoon">3D Animasyon / Çocuk & Macera</option>
+        <option value="cinematic">Sinematik Gerçekçi</option>
+        <option value="anime">Anime / İllüstrasyon</option>
+        <option value="comic">Çizgi Roman</option>
+        <option value="minimal">Minimalist / Bilgi</option>
+        <option value="dark_history">Karanlık / Gizem / Tarih</option>
+      </select>
+
+      <label>Üretim Modu</label>
+      <select id="motionMode">
+        <option value="image_pan">Görsel + Kamera Hareketi (1 Kredi)</option>
+        <option value="ai_video">Tam AI Video Sahne (3 Kredi)</option>
+      </select>
+
+      <label>Dil</label>
+      <select id="language">
+        <option value="en">İngilizce (EN)</option>
+        <option value="tr">Türkçe (TR)</option>
+        <option value="es">İspanyolca (ES)</option>
+        <option value="de">Almanca (DE)</option>
+      </select>
+
+      <label>Ses Tonu</label>
+      <select id="voiceId">
+        <option value="energetic_male">Enerjik Erkek</option>
+        <option value="warm_storyteller">Sakin Hikâyeci</option>
+        <option value="playful_kids">Neşeli / Eğlenceli</option>
+        <option value="deep_doc">Derin Belgesel</option>
+      </select>
+
+      <label>Altyazı Stili</label>
+      <select id="captionStyle">
+        <option value="bold_pop">Kalın Vurgulu Pop</option>
+        <option value="clean_sub">Sade Altyazı</option>
+        <option value="none">Altyazısız</option>
+      </select>
+
+      <label>YouTube Yayın Gizliliği</label>
+      <select id="privacyStatus">
+        <option value="private">Özel (Private - Önce Kontrol Et)</option>
+        <option value="unlisted">Liste Dışı (Unlisted)</option>
+        <option value="public">Herkese Açık (Public)</option>
+      </select>
+
+      <button onclick="createJob()">Kuyruğa Ekle ve Üretimi Başlat</button>
+    </div>
+
+    <!-- Admin Paneli -->
+    <div id="adminCard" class="card hidden">
+      <h2>Süper Admin Paneli</h2>
+      <label>Kredi Tanımlanacak Kullanıcı E-postası</label>
+      <input id="targetEmail" placeholder="kullanici@mail.com" />
+      <label>Eklenecek Kredi Miktarı</label>
+      <input id="addCreditsAmount" type="number" value="10" />
+      <button class="admin-btn" onclick="adminAddCredits()">Kullanıcıya Kredi Ekle</button>
+    </div>
+
+    <!-- Kuyruk Geçmişi -->
+    <div id="jobsCard" class="card hidden">
+      <div class="row">
+        <h3>Video Kuyruğu</h3>
+        <button class="secondary" style="width:auto; margin:0;" onclick="loadJobs()">Yenile</button>
+      </div>
+      <div id="jobsList" class="muted">Henüz iş yok.</div>
+    </div>
+  </div>
+
+  <script>
+    let sb = null;
+    let currentUser = null;
+    let currentProfile = null;
+
+    function showMsg(text) {
+      const box = document.getElementById('msgBox');
+      box.textContent = text;
+      box.style.display = 'block';
+    }
+
+    function initClient(url, key) {
+      sb = window.supabase.createClient(url, key);
+    }
+
+    function saveConfig() {
+      const url = document.getElementById('sbUrl').value.trim();
+      const key = document.getElementById('sbKey').value.trim();
+      if (!url || !key) return showMsg('Project URL ve Anon Key gerekli.');
+      localStorage.setItem('sb_url', url);
+      localStorage.setItem('sb_key', key);
+      initClient(url, key);
+      checkSession();
+    }
+
+    function resetConfig() {
+      localStorage.removeItem('sb_url');
+      localStorage.removeItem('sb_key');
+      location.reload();
+    }
+
+    async function login() {
+      const email = document.getElementById('email').value.trim();
+      const password = document.getElementById('password').value;
+      const { error } = await sb.auth.signInWithPassword({ email, password });
+      if (error) return showMsg('Giriş hatası: ' + error.message);
+      checkSession();
+    }
+
+    async function signup() {
+      const email = document.getElementById('email').value.trim();
+      const password = document.getElementById('password').value;
+      const { error } = await sb.auth.signUp({ email, password });
+      if (error) return showMsg('Kayıt hatası: ' + error.message);
+      showMsg('Kayıt başarılı! E-posta doğrulama açıksa gelen kutunu kontrol et, ardından giriş yap.');
+    }
+
+    async function logout() {
+      await sb.auth.signOut();
+      location.reload();
+    }
+
+    async function checkSession() {
+      const { data: { session } } = await sb.auth.getSession();
+      document.getElementById('configCard').classList.add('hidden');
+      if (!session) {
+        document.getElementById('authCard').classList.remove('hidden');
+        document.getElementById('appCard').classList.add('hidden');
+        document.getElementById('adminCard').classList.add('hidden');
+        document.getElementById('jobsCard').classList.add('hidden');
+        return;
+      }
+      currentUser = session.user;
+      const { data: profile, error } = await sb
+        .from('profiles')
+        .select('*')
+        .eq('id', currentUser.id)
+        .single();
+
+      if (error) return showMsg('Profil okunamadı: ' + error.message);
+      currentProfile = profile;
+
+      document.getElementById('authCard').classList.add('hidden');
+      document.getElementById('appCard').classList.remove('hidden');
+      document.getElementById('jobsCard').classList.remove('hidden');
+
+      const isAdmin = profile.role === 'admin';
+      document.getElementById('userBadge').textContent = isAdmin ? 'ADMIN' : 'ÜYE';
+      document.getElementById('creditInfo').textContent = isAdmin
+        ? `Hesap: ${profile.email} | Kredi: Sınırsız (Admin)`
+        : `Hesap: ${profile.email} | Kalan Kredi: ${profile.credits}`;
+
+      if (isAdmin) {
+        document.getElementById('adminCard').classList.remove('hidden');
+      } else {
+        document.getElementById('adminCard').classList.add('hidden');
+      }
+      loadJobs();
+    }
+
+    async function createJob() {
+      const topic = document.getElementById('topic').value.trim();
+      if (!topic) return showMsg('Lütfen ne üretileceğini yaz.');
+
+      const { data, error } = await sb.rpc('create_video_job', {
+        p_user_id: currentUser.id,
+        p_channel_id: null,
+        p_topic: topic,
+        p_visual_style: document.getElementById('visualStyle').value,
+        p_motion_mode: document.getElementById('motionMode').value,
+        p_language: document.getElementById('language').value,
+        p_voice_id: document.getElementById('voiceId').value,
+        p_caption_style: document.getElementById('captionStyle').value,
+        p_privacy_status: document.getElementById('privacyStatus').value
+      });
+
+      if (error) return showMsg('İş oluşturulamadı: ' + error.message);
+      document.getElementById('topic').value = '';
+      showMsg('Video işi kuyruğa eklendi! ID: ' + data);
+      checkSession();
+    }
+
+    async function adminAddCredits() {
+      const email = document.getElementById('targetEmail').value.trim();
+      const amount = parseInt(document.getElementById('addCreditsAmount').value, 10);
+      if (!email || !amount) return showMsg('E-posta ve kredi miktarı gir.');
+
+      const { data: target, error: findErr } = await sb
+        .from('profiles')
+        .select('id, credits')
+        .eq('email', email)
+        .single();
+
+      if (findErr || !target) return showMsg('Kullanıcı bulunamadı.');
+
+      const { error: updErr } = await sb
+        .from('profiles')
+        .update({ credits: target.credits + amount })
+        .eq('id', target.id);
+
+      if (updErr) return showMsg('Kredi eklenemedi (Admin RLS kuralı gerekebilir): ' + updErr.message);
+      showMsg(`${email} hesabına +${amount} kredi eklendi.`);
+    }
+
+    async function loadJobs() {
+      const { data, error } = await sb
+        .from('video_jobs')
+        .select('id, topic, visual_style, motion_mode, status, created_at')
+        .order('created_at', { ascending: false })
+        .limit(20);
+
+      const list = document.getElementById('jobsList');
+      if (error) {
+        list.textContent = 'Kuyruk okunamadı: ' + error.message;
+        return;
+      }
+      if (!data || data.length === 0) {
+        list.textContent = 'Henüz kuyrukta video işi yok.';
+        return;
+      }
+      list.innerHTML = data.map(j => `
+        <div class="job-item">
+          <div><strong>${j.topic}</strong> — <span class="badge">${j.status}</span></div>
+          <div class="muted">Tarz: ${j.visual_style} | Mod: ${j.motion_mode}</div>
+        </div>
+      `).join('');
+    }
+
+    const savedUrl = localStorage.getItem('sb_url');
+    const savedKey = localStorage.getItem('sb_key');
+    if (savedUrl && savedKey) {
+      document.getElementById('sbUrl').value = savedUrl;
+      document.getElementById('sbKey').value = savedKey;
+      initClient(savedUrl, savedKey);
+      checkSession();
+    }
+  </script>
+</body>
+</html>
